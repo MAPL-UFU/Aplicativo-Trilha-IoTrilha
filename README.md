@@ -156,14 +156,12 @@ Bash
 cd API
 pip install flask pymysql
 python api_server.py
-# O servidor rodará em http://SEU_IP:5000
 Terminal 2 (Bridge MQTT):
 
 Bash
 cd MOCK
 pip install paho-mqtt pymysql
 python mock_pelms.py
-# O listener ficará aguardando mensagens nos tópicos 'trilha/...'
 Passo C: Rodar o Aplicativo Mobile
 Conecte seu celular Android via USB (Depuração USB ativa).
 
