@@ -1,0 +1,11 @@
+# --- Configurações do MQTT ---
+MQTT_BROKER = "192.168.15.79" 
+MQTT_PORTA = 1883
+MQTT_TOPICO = "trilha/eventos/passagem"
+
+# --- Configurações do MySQL ---
+MYSQL_HOST = "127.0.0.1"
+MYSQL_USUARIO = "JoaoMarcos"
+MYSQL_SENHA = "5an5un65@L"  
+MYSQL_BANCO = "aplicativotrilhamapl"
+MYSQL_PORTA = 3306  
