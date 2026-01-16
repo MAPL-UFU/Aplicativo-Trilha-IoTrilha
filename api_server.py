@@ -749,9 +749,86 @@ def get_usuarios():
     finally:
         if conexao: conexao.close()
 
+# --- ENDPOINT 20: Buscar Dados Completos do Usuário (GET) ---
+@app.route('/api/usuario/<int:user_id>', methods=['GET'])
+def get_dados_usuario_completo(user_id):
+    print(f"[API_SERVER] Buscando dados completos para ID: {user_id}")
+    conexao = conectar_mysql()
+    if conexao is None: return jsonify({"erro": "Sem conexão"}), 500
+
+    try:
+        with conexao.cursor() as cursor:
+            sql = """
+            SELECT id, nome, email, telefone, idade, sexo, url_foto_perfil, tipo_perfil, status_guia
+            FROM usuarios WHERE id = %s
+            """
+            cursor.execute(sql, (user_id,))
+            usuario = cursor.fetchone()
+
+            if not usuario:
+                return jsonify({"erro": "Usuário não encontrado"}), 404
+
+            return jsonify(usuario)
+
+    except pymysql.Error as err:
+        return jsonify({"erro": f"Erro SQL: {err}"}), 500
+    finally:
+        if conexao: conexao.close()
+
+# --- ENDPOINT 21: Atualizar Dados do Usuário (PUT) ---
+@app.route('/api/usuario/<int:user_id>/dados', methods=['PUT'])
+def atualizar_dados_usuario(user_id):
+    print(f"[API_SERVER] Atualizando dados para ID: {user_id}")
+    data = request.json
+    
+    conexao = conectar_mysql()
+    if conexao is None: return jsonify({"erro": "Sem conexão"}), 500
+
+    try:
+        campos = []
+        valores = []
+
+        if 'nome' in data:
+            campos.append("nome = %s")
+            valores.append(data['nome'])
+        
+        if 'telefone' in data:
+            campos.append("telefone = %s")
+            valores.append(data['telefone'])
+            
+        if 'idade' in data:
+            campos.append("idade = %s")
+            valores.append(data['idade'])
+            
+        if 'sexo' in data:
+            campos.append("sexo = %s")
+            valores.append(data['sexo'])
+
+        if 'senha' in data and data['senha']:
+            campos.append("senha_hash = %s")
+            valores.append(generate_password_hash(data['senha']))
+
+        if not campos:
+            return jsonify({"mensagem": "Nenhum dado enviado para atualização"}), 200
+
+        valores.append(user_id) # Para o WHERE
+        
+        sql = f"UPDATE usuarios SET {', '.join(campos)} WHERE id = %s"
+        
+        with conexao.cursor() as cursor:
+            cursor.execute(sql, tuple(valores))
+            conexao.commit()
+            
+        return jsonify({"mensagem": "Dados atualizados com sucesso!"})
+
+    except pymysql.Error as err:
+        return jsonify({"erro": f"Erro SQL: {err}"}), 500
+    finally:
+        if conexao: conexao.close()
 # --- Roda o Servidor ---
 if __name__ == '__main__':
     print("[API_SERVER] Iniciando servidor Flask...")
     # host='0.0.0.0' faz o servidor ser visível na sua rede local (pelo IP 192.168.15.79)
     # e também em localhost (127.0.0.1)
     app.run(host='0.0.0.0', port=5000, debug=True)
+
