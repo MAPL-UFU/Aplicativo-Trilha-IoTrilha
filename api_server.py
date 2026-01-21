@@ -812,7 +812,9 @@ def atualizar_dados_usuario(user_id):
         if not campos:
             return jsonify({"mensagem": "Nenhum dado enviado para atualização"}), 200
 
+
         valores.append(user_id) 
+
         
         sql = f"UPDATE usuarios SET {', '.join(campos)} WHERE id = %s"
         
@@ -826,6 +828,7 @@ def atualizar_dados_usuario(user_id):
         return jsonify({"erro": f"Erro SQL: {err}"}), 500
     finally:
         if conexao: conexao.close()
+
         
         Recuperar Senha (Esqueci minha senha) ---
 @app.route('/api/recuperar-senha', methods=['POST'])
@@ -943,7 +946,7 @@ def atualizar_status_agendamento(agendamento_id):
         return jsonify({"erro": str(err)}), 500
     finally:
         if conexao: conexao.close()
-        
+
 # --- Roda o Servidor ---
 if __name__ == '__main__':
     print("[API_SERVER] Iniciando servidor Flask...")
