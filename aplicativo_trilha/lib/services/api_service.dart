@@ -251,7 +251,7 @@ class ApiService {
   Future<Map<String, dynamic>> getDadosUsuarioCompleto(int userId) async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/api/usuario/$userId/completo'),
+        Uri.parse('$baseUrl/api/usuario/$userId'),
       );
 
       if (response.statusCode == 200) {
@@ -261,6 +261,77 @@ class ApiService {
       }
     } catch (e) {
       print("Erro getDadosUsuarioCompleto: $e");
+      rethrow;
+    }
+  }
+
+  Future<void> recuperarSenha(String email, String novaSenha) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/recuperar-senha'),
+        headers: {'Content-Type': 'application/json; charset=UTF-8'},
+        body: jsonEncode({'email': email, 'nova_senha': novaSenha}),
+      );
+
+      if (response.statusCode != 200) {
+        final data = jsonDecode(response.body);
+        throw Exception(data['erro'] ?? 'Erro ao redefinir senha');
+      }
+    } catch (e) {
+      print("Erro recuperarSenha: $e");
+      rethrow;
+    }
+  }
+
+  Future<void> atualizarStatusAgendamento(
+    int agendamentoId,
+    String status,
+  ) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$baseUrl/api/agendamento/$agendamentoId/status'),
+        headers: {'Content-Type': 'application/json; charset=UTF-8'},
+        body: jsonEncode({'status': status}),
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Falha ao atualizar status do agendamento');
+      }
+    } catch (e) {
+      print("Erro atualizarStatusAgendamento: $e");
+      rethrow;
+    }
+  }
+
+  Future<List<dynamic>> getAgendamentosPendentes() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/agendamentos/pendentes'),
+      );
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        throw Exception('Falha ao buscar pendentes');
+      }
+    } catch (e) {
+      print("Erro getAgendamentosPendentes: $e");
+      rethrow;
+    }
+  }
+
+  Future<void> atribuirGuia(int agendamentoId, int guiaId) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$baseUrl/api/agendamento/$agendamentoId/atribuir'),
+        headers: {'Content-Type': 'application/json; charset=UTF-8'},
+        body: jsonEncode({'id_guia': guiaId}),
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Falha ao atribuir guia');
+      }
+    } catch (e) {
+      print("Erro atribuirGuia: $e");
       rethrow;
     }
   }

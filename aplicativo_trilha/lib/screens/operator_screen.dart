@@ -1,4 +1,5 @@
 // lib/screens/operator_screen.dart
+import 'package:aplicativo_trilha/screens/schedule_management_screen.dart';
 import 'package:aplicativo_trilha/screens/tag_manager_screen.dart';
 import 'package:aplicativo_trilha/widgets/operator_drawer.dart';
 import 'package:flutter/material.dart';
@@ -174,15 +175,21 @@ class _OperatorScreenState extends State<OperatorScreen> {
                       onTap: () => setState(
                         () => _showEventDetails = !_showEventDetails,
                       ),
-                      expandedContent: _buildCleanMatrix([
-                        ["Métrica", "Valor", "Status"],
-                        ["Broker MQTT", "Online", "OK"],
-                        [
-                          "Última Leitura",
-                          _formatarData(_dashboardData['ultimo_evento_data']),
-                          "Info",
+                      expandedContent: Column(
+                        children: [
+                          _buildMatrixRow([
+                            "Métrica",
+                            "Valor",
+                            "Status",
+                          ], isHeader: true),
+                          _buildMatrixRow(["Broker MQTT", "Online", "OK"]),
+                          _buildMatrixRow([
+                            "Última Leitura",
+                            _formatarData(_dashboardData['ultimo_evento_data']),
+                            "Info",
+                          ]),
                         ],
-                      ]),
+                      ),
                     ),
 
                     const SizedBox(height: 16),
@@ -199,25 +206,40 @@ class _OperatorScreenState extends State<OperatorScreen> {
                       onTap: () => setState(
                         () => _showScheduleDetails = !_showScheduleDetails,
                       ),
-                      expandedContent: _buildCleanMatrix(
-                        [
-                          ["Situação", "Qtd.", "Ação"],
-                          [
+                      expandedContent: Column(
+                        children: [
+                          _buildMatrixRow([
+                            "Situação",
+                            "Qtd.",
+                            "Ação",
+                          ], isHeader: true),
+                          _buildMatrixRow([
                             "Confirmados",
                             _dashboardData['agendamentos_confirmados']
                                     ?.toString() ??
                                 '0',
                             "",
-                          ],
-                          [
-                            "Pendentes",
-                            _dashboardData['agendamentos_pendentes']
-                                    ?.toString() ??
-                                '0',
-                            "Revisar",
-                          ],
+                          ]),
+                          _buildMatrixRow(
+                            [
+                              "Pendentes",
+                              _dashboardData['agendamentos_pendentes']
+                                      ?.toString() ??
+                                  '0',
+                              "Revisar",
+                            ],
+                            isHighlight: true,
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      const ScheduleManagementScreen(),
+                                ),
+                              );
+                            },
+                          ),
                         ],
-                        highlightRows: [2],
                       ),
                     ),
 
@@ -286,68 +308,70 @@ class _OperatorScreenState extends State<OperatorScreen> {
     );
   }
 
-  Widget _buildCleanMatrix(
-    List<List<String>> data, {
-    List<int>? highlightRows,
+  Widget _buildMatrixRow(
+    List<String> row, {
+    bool isHeader = false,
+    bool isHighlight = false,
+    VoidCallback? onTap,
   }) {
-    return Column(
-      children: data.asMap().entries.map((entry) {
-        int idx = entry.key;
-        List<String> row = entry.value;
-        bool isHeader = idx == 0;
-        bool isHighlight = highlightRows?.contains(idx) ?? false;
-
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6.0),
-          child: Row(
-            children: [
-              Expanded(
-                flex: 3,
-                child: Text(
-                  row[0],
-                  style: TextStyle(
-                    color: isHeader
-                        ? Colors.grey
-                        : (isHighlight ? Colors.orange[800] : Colors.black87),
-                    fontWeight: isHeader ? FontWeight.normal : FontWeight.w600,
-                    fontSize: isHeader ? 12 : 14,
-                  ),
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+        child: Row(
+          children: [
+            Expanded(
+              flex: 3,
+              child: Text(
+                row[0],
+                style: TextStyle(
+                  color: isHeader
+                      ? Colors.grey
+                      : (isHighlight ? Colors.orange[800] : Colors.black87),
+                  fontWeight: isHeader ? FontWeight.normal : FontWeight.w600,
+                  fontSize: isHeader ? 12 : 14,
                 ),
               ),
-              Expanded(
-                flex: 2,
-                child: Text(
-                  row[1],
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: isHeader ? Colors.grey : Colors.black,
-                    fontWeight: FontWeight.bold,
-                    fontSize: isHeader ? 12 : 14,
-                  ),
+            ),
+            Expanded(
+              flex: 2,
+              child: Text(
+                row[1],
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: isHeader ? Colors.grey : Colors.black,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-              Expanded(
-                flex: 2,
-                child: Text(
-                  row[2],
-                  textAlign: TextAlign.right,
-                  style: TextStyle(
-                    color: isHeader
-                        ? Colors.grey
-                        : (row[2] == "OK"
-                              ? Colors.green
-                              : (row[2] == "Revisar"
-                                    ? Colors.orange
-                                    : Colors.grey)),
-                    fontWeight: FontWeight.bold,
-                    fontSize: isHeader ? 12 : 12,
+            ),
+            Expanded(
+              flex: 2,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Text(
+                    row[2],
+                    textAlign: TextAlign.right,
+                    style: TextStyle(
+                      color: row[2] == "Revisar" ? Colors.blue : Colors.grey,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
                   ),
-                ),
+                  if (row[2] == "Revisar") ...[
+                    const SizedBox(width: 4),
+                    const Icon(
+                      Icons.arrow_forward,
+                      size: 12,
+                      color: Colors.blue,
+                    ),
+                  ],
+                ],
               ),
-            ],
-          ),
-        );
-      }).toList(),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

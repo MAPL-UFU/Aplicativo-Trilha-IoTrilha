@@ -446,7 +446,11 @@ class _GuideAgendaTabState extends State<GuideAgendaTab> {
               backgroundColor: _getStatusColor(ev['status']),
               padding: EdgeInsets.zero,
             ),
-            onTap: () => _mostrarDetalhes(context, ev),
+            onTap: () => _mostrarDetalhes(
+              context,
+              ev,
+              onConfirmSuccess: () => _carregarAgenda(),
+            ),
           ),
         );
       },
@@ -684,43 +688,297 @@ class _GuideStatsTabState extends State<GuideStatsTab> {
   }
 }
 
-void _mostrarDetalhes(BuildContext context, Map<String, dynamic> item) {
+void _mostrarDetalhes(
+  BuildContext context,
+  Map<String, dynamic> item, {
+  VoidCallback? onConfirmSuccess,
+}) {
+  final bool isPendente = item['status'] == 'pendente';
+  final bool isConfirmado = item['status'] == 'confirmado';
+
   showDialog(
     context: context,
-    builder: (c) => AlertDialog(
-      title: Text(item['nome_trilha']),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _infoRow("Cliente:", item['nome_trilheiro']),
-          _infoRow(
-            "Data:",
-            DateFormat(
-              'dd/MM/yyyy HH:mm',
-            ).format(DateTime.parse(item['data_agendada'])),
-          ),
-          _infoRow("Dificuldade:", item['dificuldade']),
-          const SizedBox(height: 10),
-          if (item['status'] == 'pendente')
-            const Text(
-              "⚠️ Esta trilha aguarda sua confirmação.",
-              style: TextStyle(
-                color: Colors.orange,
-                fontWeight: FontWeight.bold,
+    builder: (ctx) {
+      bool isProcessing = false;
+
+      return StatefulBuilder(
+        builder: (context, setStateDialog) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item['nome_trilha'] ?? 'Detalhes da Trilha',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isPendente
+                        ? Colors.orange[100]
+                        : (isConfirmado ? Colors.green[100] : Colors.grey[200]),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    item['status'].toString().toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: isPendente
+                          ? Colors.deepOrange
+                          : (isConfirmado ? Colors.green[800] : Colors.black54),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Divider(),
+                  _infoRow(
+                    "Cliente:",
+                    item['nome_trilheiro'] ?? 'Desconhecido',
+                  ),
+                  _infoRow(
+                    "Data:",
+                    item['data_agendada'] != null
+                        ? DateFormat(
+                            'dd/MM/yyyy HH:mm',
+                          ).format(DateTime.parse(item['data_agendada']))
+                        : "A definir",
+                  ),
+                  _infoRow("Dificuldade:", item['dificuldade'] ?? '-'),
+                  _infoRow(
+                    "Duração Est:",
+                    "${item['duracao_estimada_min'] ?? '?'} min",
+                  ),
+
+                  if (item['notas'] != null &&
+                      item['notas'].toString().isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    const Text(
+                      "Notas do Trilheiro:",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                    Container(
+                      width: double.infinity,
+                      margin: const EdgeInsets.only(top: 4),
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey[300]!),
+                      ),
+                      child: Text(
+                        item['notas'],
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 10),
+
+                  if (isPendente)
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.orange[50],
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.orange[200]!),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(
+                            Icons.warning_amber_rounded,
+                            color: Colors.orange,
+                            size: 20,
+                          ),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              "Esta trilha foi atribuída a você e aguarda confirmação.",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.deepOrange,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
               ),
             ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(c),
-          child: const Text("Fechar"),
-        ),
-        if (item['status'] == 'confirmado')
-          ElevatedButton(onPressed: () {}, child: const Text("INICIAR TRILHA")),
-      ],
-    ),
+            actions: [
+              TextButton(
+                onPressed: isProcessing ? null : () => Navigator.pop(ctx),
+                child: const Text(
+                  "Fechar",
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+
+              if (isPendente)
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1B5E20),
+                    foregroundColor: Colors.white,
+                  ),
+                  icon: isProcessing
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Icon(Icons.check, size: 18),
+                  label: Text(
+                    isProcessing ? "Confirmando..." : "ACEITAR TRILHA",
+                  ),
+                  onPressed: isProcessing
+                      ? null
+                      : () async {
+                          setStateDialog(() => isProcessing = true);
+
+                          try {
+                            await apiService.atualizarStatusAgendamento(
+                              item['id'],
+                              'confirmado',
+                            );
+
+                            if (context.mounted) {
+                              Navigator.pop(ctx);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    "Trilha confirmada com sucesso!",
+                                  ),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                              if (onConfirmSuccess != null) onConfirmSuccess();
+                            }
+                          } catch (e) {
+                            setStateDialog(() => isProcessing = false);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text("Erro: $e"),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                ),
+
+              if (isConfirmado)
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue[800],
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
+                  ),
+                  icon: isProcessing
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Icon(Icons.play_arrow, size: 20),
+                  label: Text(
+                    isProcessing ? "Iniciando..." : "INICIAR AGORA",
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  onPressed: isProcessing
+                      ? null
+                      : () async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (c) => AlertDialog(
+                              title: const Text("Iniciar Trilha"),
+                              content: const Text(
+                                "Deseja marcar esta trilha como 'Em Andamento'?\nIsso notificará a base que vocês partiram.",
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(c, false),
+                                  child: const Text("Não"),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(c, true),
+                                  child: const Text("Sim, Vamos!"),
+                                ),
+                              ],
+                            ),
+                          );
+
+                          if (confirm != true) return;
+
+                          setStateDialog(() => isProcessing = true);
+
+                          try {
+                            await apiService.atualizarStatusAgendamento(
+                              item['id'],
+                              'em_andamento',
+                            );
+
+                            if (context.mounted) {
+                              Navigator.pop(ctx);
+
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    "Trilha Iniciada! Boa aventura. 🏔️",
+                                  ),
+                                  backgroundColor: Colors.blue,
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                              if (onConfirmSuccess != null) onConfirmSuccess();
+                            }
+                          } catch (e) {
+                            setStateDialog(() => isProcessing = false);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text("Erro ao iniciar: $e"),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                ),
+            ],
+          );
+        },
+      );
+    },
   );
 }
 
@@ -730,8 +988,16 @@ Widget _infoRow(String label, String value) {
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text("$label ", style: const TextStyle(fontWeight: FontWeight.bold)),
-        Expanded(child: Text(value)),
+        Text(
+          "$label ",
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+        Expanded(
+          child: Text(value, style: const TextStyle(color: Colors.black87)),
+        ),
       ],
     ),
   );

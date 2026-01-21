@@ -65,76 +65,102 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _showForgotPasswordDialog() {
-    final txtCpf = TextEditingController();
+    final txtEmail = TextEditingController();
     final txtNovaSenha = TextEditingController();
-
+    bool isLoading = false;
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Recuperar Acesso"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              "Informe seu CPF para redefinir a senha.",
-              style: TextStyle(fontSize: 12),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: txtCpf,
-              decoration: const InputDecoration(
-                labelText: "CPF",
-                border: OutlineInputBorder(),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setStateDialog) => AlertDialog(
+          title: const Text("Recuperar Acesso"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                "Informe seu E-mail para redefinir a senha no servidor.",
+                style: TextStyle(fontSize: 12),
               ),
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: txtNovaSenha,
-              decoration: const InputDecoration(
-                labelText: "Nova senha",
-                border: OutlineInputBorder(),
+              const SizedBox(height: 10),
+              TextField(
+                controller: txtEmail,
+                decoration: const InputDecoration(
+                  labelText: "E-mail cadastrado",
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.email),
+                ),
+                keyboardType: TextInputType.emailAddress,
               ),
-              obscureText: true,
+              const SizedBox(height: 10),
+              TextField(
+                controller: txtNovaSenha,
+                decoration: const InputDecoration(
+                  labelText: "Nova senha",
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.lock_reset),
+                ),
+                obscureText: true,
+              ),
+              if (isLoading) ...[
+                const SizedBox(height: 10),
+                const CircularProgressIndicator(),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancelar"),
+            ),
+            ElevatedButton(
+              onPressed: isLoading
+                  ? null
+                  : () async {
+                      if (txtEmail.text.isEmpty || txtNovaSenha.text.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text("Preencha todos os campos"),
+                          ),
+                        );
+                        return;
+                      }
+
+                      setStateDialog(() => isLoading = true);
+
+                      try {
+                        await apiService.recuperarSenha(
+                          txtEmail.text.trim(),
+                          txtNovaSenha.text,
+                        );
+
+                        if (mounted) {
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                "Sucesso! Senha alterada no servidor.",
+                              ),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        setStateDialog(() => isLoading = false);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                "Erro: ${e.toString().replaceAll('Exception:', '')}",
+                              ),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
+                    },
+              child: const Text("Redefinir Realmente"),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Cancelar"),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              bool exists = await authService.checkCpfExistsLocal(
-                txtCpf.text.trim(),
-              );
-              if (!exists) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text("CPF não encontrado."),
-                    backgroundColor: Colors.orange,
-                  ),
-                );
-                return;
-              }
-              await authService.updateLocalPassword(
-                txtCpf.text.trim(),
-                txtNovaSenha.text,
-              );
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    "Senha atualizada! Use a nova senha para entrar.",
-                  ),
-                  backgroundColor: Colors.green,
-                ),
-              );
-            },
-            child: const Text("Redefinir"),
-          ),
-        ],
       ),
     );
   }

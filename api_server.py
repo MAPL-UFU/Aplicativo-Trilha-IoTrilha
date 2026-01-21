@@ -177,6 +177,7 @@ def register_user():
 
     nome = data.get('nome')
     email = data.get('email')
+    cpf = data.get('cpf')
     senha = data.get('senha')
     tipo_perfil = int(data.get('tipo_perfil', 1))
     telefone = data.get('telefone')
@@ -198,10 +199,10 @@ def register_user():
     try:
         with conexao.cursor() as cursor:
             sql_insert_user = """
-            INSERT INTO usuarios (nome, email, senha_hash, tipo_perfil, telefone, idade, sexo)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO usuarios (nome, email, cpf, senha_hash, tipo_perfil, telefone, idade, sexo)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             """
-            cursor.execute(sql_insert_user, (nome, email, senha_hash, tipo_perfil, telefone, idade, sexo))
+            cursor.execute(sql_insert_user, (nome, email, cpf, senha_hash, tipo_perfil, telefone, idade, sexo))
             novo_id = cursor.lastrowid 
             url_foto_final = None # Padrão
             if 'foto_perfil' in request.files:
@@ -243,23 +244,23 @@ def register_user():
 def login_user():
     print("[API_SERVER] Recebida requisição para /api/login")
     data = request.json
-    email = data.get('email')
+    login_input = data.get('email') 
     senha = data.get('senha')
 
-    if not email or not senha:
-        return jsonify({"erro": "E-mail e senha são obrigatórios"}), 400
+    if not login_input or not senha:
+        return jsonify({"erro": "Login e senha são obrigatórios"}), 400
 
     conexao = conectar_mysql()
     if conexao is None: return jsonify({"erro": "Erro de conexão com BD"}), 500
 
     try:
         with conexao.cursor() as cursor:
-            sql = "SELECT * FROM usuarios WHERE email = %s"
-            cursor.execute(sql, (email,))
+            sql = "SELECT * FROM usuarios WHERE email = %s OR cpf = %s"
+            cursor.execute(sql, (login_input, login_input))
             usuario = cursor.fetchone() 
 
             if not usuario:
-                return jsonify({"erro": "Credenciais inválidas (usuário)"}), 401 
+                return jsonify({"erro": "Usuário não encontrado"}), 401
 
             if not check_password_hash(usuario['senha_hash'], senha):
                 return jsonify({"erro": "Credenciais inválidas (senha)"}), 401
@@ -749,9 +750,204 @@ def get_usuarios():
     finally:
         if conexao: conexao.close()
 
+# --- ENDPOINT 20: Buscar Dados Completos do Usuário (GET) ---
+@app.route('/api/usuario/<int:user_id>', methods=['GET'])
+def get_dados_usuario_completo(user_id):
+    print(f"[API_SERVER] Buscando dados completos para ID: {user_id}")
+    conexao = conectar_mysql()
+    if conexao is None: return jsonify({"erro": "Sem conexão"}), 500
+
+    try:
+        with conexao.cursor() as cursor:
+            sql = """
+            SELECT id, nome, email, telefone, idade, sexo, url_foto_perfil, tipo_perfil, status_guia
+            FROM usuarios WHERE id = %s
+            """
+            cursor.execute(sql, (user_id,))
+            usuario = cursor.fetchone()
+
+            if not usuario:
+                return jsonify({"erro": "Usuário não encontrado"}), 404
+
+            return jsonify(usuario)
+
+    except pymysql.Error as err:
+        return jsonify({"erro": f"Erro SQL: {err}"}), 500
+    finally:
+        if conexao: conexao.close()
+
+# --- ENDPOINT 21: Atualizar Dados do Usuário (PUT) ---
+@app.route('/api/usuario/<int:user_id>/dados', methods=['PUT'])
+def atualizar_dados_usuario(user_id):
+    print(f"[API_SERVER] Atualizando dados para ID: {user_id}")
+    data = request.json
+    
+    conexao = conectar_mysql()
+    if conexao is None: return jsonify({"erro": "Sem conexão"}), 500
+
+    try:
+        campos = []
+        valores = []
+
+        if 'nome' in data:
+            campos.append("nome = %s")
+            valores.append(data['nome'])
+        
+        if 'telefone' in data:
+            campos.append("telefone = %s")
+            valores.append(data['telefone'])
+            
+        if 'idade' in data:
+            campos.append("idade = %s")
+            valores.append(data['idade'])
+            
+        if 'sexo' in data:
+            campos.append("sexo = %s")
+            valores.append(data['sexo'])
+
+        if 'senha' in data and data['senha']:
+            campos.append("senha_hash = %s")
+            valores.append(generate_password_hash(data['senha']))
+
+        if not campos:
+            return jsonify({"mensagem": "Nenhum dado enviado para atualização"}), 200
+
+        valores.append(user_id) 
+        
+        sql = f"UPDATE usuarios SET {', '.join(campos)} WHERE id = %s"
+        
+        with conexao.cursor() as cursor:
+            cursor.execute(sql, tuple(valores))
+            conexao.commit()
+            
+        return jsonify({"mensagem": "Dados atualizados com sucesso!"})
+
+    except pymysql.Error as err:
+        return jsonify({"erro": f"Erro SQL: {err}"}), 500
+    finally:
+        if conexao: conexao.close()
+        
+        Recuperar Senha (Esqueci minha senha) ---
+@app.route('/api/recuperar-senha', methods=['POST'])
+def recuperar_senha():
+    print("[API_SERVER] Recebida solicitação de recuperação de senha")
+    data = request.json
+    email = data.get('email')
+    nova_senha = data.get('nova_senha')
+
+    if not email or not nova_senha:
+        return jsonify({"erro": "E-mail e nova senha são obrigatórios"}), 400
+
+    conexao = conectar_mysql()
+    if conexao is None: return jsonify({"erro": "Sem conexão com BD"}), 500
+
+    try:
+        with conexao.cursor() as cursor:
+            cursor.execute("SELECT id FROM usuarios WHERE email = %s", (email,))
+            usuario = cursor.fetchone()
+
+            if not usuario:
+                return jsonify({"erro": "E-mail não encontrado"}), 404
+
+            nova_hash = generate_password_hash(nova_senha)
+            cursor.execute("UPDATE usuarios SET senha_hash = %s WHERE id = %s", (nova_hash, usuario['id']))
+            conexao.commit()
+
+            return jsonify({"mensagem": "Senha redefinida com sucesso!"})
+
+    except pymysql.Error as err:
+        return jsonify({"erro": f"Erro de SQL: {err}"}), 500
+    finally:
+        if conexao: conexao.close()
+        
+        # --- ENDPOINT 22: Listar Agendamentos Pendentes ---
+@app.route('/api/agendamentos/pendentes', methods=['GET'])
+def get_agendamentos_pendentes():
+    print("[API_SERVER] Buscando agendamentos sem guia...")
+    conexao = conectar_mysql()
+    if conexao is None: return jsonify({"erro": "Sem conexão"}), 500
+
+    try:
+        with conexao.cursor() as cursor:
+            sql = """
+            SELECT 
+                a.id, a.data_agendada, a.status, a.nome_trilha, a.dificuldade,
+                u.nome as nome_trilheiro, u.url_foto_perfil as foto_trilheiro,
+                a.duracao_estimada_min, a.notas
+            FROM agendamentos a
+            JOIN usuarios u ON a.id_trilheiro = u.id
+            WHERE a.id_guia IS NULL AND a.status = 'pendente'
+            ORDER BY a.data_agendada ASC
+            """
+            cursor.execute(sql)
+            pendentes = cursor.fetchall()
+            
+            for ag in pendentes:
+                if ag['data_agendada']:
+                    ag['data_agendada'] = ag['data_agendada'].strftime('%Y-%m-%d %H:%M:%S')
+
+            return jsonify(pendentes)
+    except pymysql.Error as err:
+        return jsonify({"erro": str(err)}), 500
+    finally:
+        if conexao: conexao.close()
+        
+        # --- ENDPOINT 23: Atribuir Guia a um Agendamento ---
+@app.route('/api/agendamento/<int:agendamento_id>/atribuir', methods=['PUT'])
+def atribuir_guia(agendamento_id):
+    data = request.json
+    id_guia = data.get('id_guia') 
+
+    if not id_guia:
+        return jsonify({"erro": "ID do guia é obrigatório"}), 400
+
+    print(f"[API_SERVER] Atribuindo agendamento {agendamento_id} ao guia {id_guia}")
+    
+    conexao = conectar_mysql()
+    if conexao is None: return jsonify({"erro": "Sem conexão"}), 500
+
+    try:
+        with conexao.cursor() as cursor:
+            sql = "UPDATE agendamentos SET id_guia = %s WHERE id = %s"
+            cursor.execute(sql, (id_guia, agendamento_id))
+            conexao.commit()
+            
+            return jsonify({"mensagem": "Guia atribuído com sucesso!"})
+    except pymysql.Error as err:
+        return jsonify({"erro": str(err)}), 500
+    finally:
+        if conexao: conexao.close()
+        
+        # --- ENDPOINT 24: Atualizar Status do Agendamento ---
+@app.route('/api/agendamento/<int:agendamento_id>/status', methods=['PUT'])
+def atualizar_status_agendamento(agendamento_id):
+    data = request.json
+    novo_status = data.get('status') 
+
+    if not novo_status:
+        return jsonify({"erro": "Status é obrigatório"}), 400
+
+    print(f"[API_SERVER] Atualizando agendamento {agendamento_id} para status: {novo_status}")
+
+    conexao = conectar_mysql()
+    if conexao is None: return jsonify({"erro": "Sem conexão"}), 500
+
+    try:
+        with conexao.cursor() as cursor:
+            sql = "UPDATE agendamentos SET status = %s WHERE id = %s"
+            cursor.execute(sql, (novo_status, agendamento_id))
+            conexao.commit()
+            
+            return jsonify({"mensagem": f"Status atualizado para {novo_status}"})
+    except pymysql.Error as err:
+        return jsonify({"erro": str(err)}), 500
+    finally:
+        if conexao: conexao.close()
+        
 # --- Roda o Servidor ---
 if __name__ == '__main__':
     print("[API_SERVER] Iniciando servidor Flask...")
     # host='0.0.0.0' faz o servidor ser visível na sua rede local (pelo IP 192.168.15.79)
     # e também em localhost (127.0.0.1)
     app.run(host='0.0.0.0', port=5000, debug=True)
+
