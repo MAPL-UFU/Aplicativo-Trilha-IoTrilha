@@ -191,4 +191,57 @@ trilha/gps_lon
 
 trilha/time_stamp
 
-Desenvolvido por: Equipe MAPL. Versão 1.5.22 - Janeiro/2026
+🚀 Notas de Atualização - Versão v1.6
+🛠️ Correções de Bugs (Fixes)
+1. Perfil do Usuário e Botão "Editar" (Crítico) 
+
+Problema: O botão de edição falhava silenciosamente e informações como Sexo e Telefone não apareciam na tela.
+
+Causa Raiz: O arquivo api_service.dart chamava a rota /api/usuario/{id}/completo, porém o endpoint no servidor (api_server.py) estava definido apenas como /api/usuario/{id}. Isso gerava um erro 404 Not Found, caindo em um bloco try-catch silencioso no Flutter.
+
+Correção:
+
+Ajustada a URL no ApiService para bater com a rota existente.
+
+Adicionado o widget visual (_buildInfoCard) para exibir o telefone no profile_screen.dart.
+
+Corrigida a lógica do Dropdown de sexo para aceitar valores por extenso ("Masculino"/"Feminino").
+
+2. Tela do Operador - Link Quebrado
+Problema: O texto "Revisar" na lista de agendamentos pendentes era estático.
+
+Correção: Substituído o método _buildCleanMatrix por _buildMatrixRow com suporte a InkWell, permitindo clicar na linha para abrir a gestão.
+
+✨ Novas Funcionalidades (Features)
+1. Gestão de Agendamentos (Ciclo Completo)
+Implementado fluxo ponta-a-ponta para solicitação e aprovação de guias:
+
+Backend (API):
+
+Novo Endpoint GET /api/agendamentos/pendentes: Lista trilhas sem guia atribuído.
+
+Novo Endpoint PUT /api/agendamento/{id}/atribuir: Vincula um guia à trilha.
+
+Novo Endpoint PUT /api/agendamento/{id}/status: Permite alterar status (confirmado/em_andamento).
+
+Frontend (Operador):
+
+Nova tela ScheduleManagementScreen: "Torre de controle" para visualizar pendências e atribuir guias via modal dinâmico.
+
+Frontend (Guia):
+
+Botão "Aceitar Trilha": Confirma a atribuição feita pelo operador.
+
+Botão "Iniciar Agora": Muda status para em_andamento e move a trilha para o painel "Trilha Atual" com destaque.
+
+2. Recuperação de Senha Real ("Esqueci minha Senha")
+Substituída a lógica de "senha local fake" por uma redefinição real no servidor.
+
+Novo Endpoint POST /api/recuperar-senha: Reseta o hash da senha no MySQL baseada no e-mail fornecido.
+
+3. Implementação de CPF
+Banco de Dados: Adicionada coluna cpf (Unique) na tabela usuarios.
+
+API: Atualizados endpoints de Register (para salvar) e Login (para aceitar E-mail OU CPF na autenticação).
+
+Desenvolvido por: Equipe MAPL. Versão 1.6 - Janeiro/2026
