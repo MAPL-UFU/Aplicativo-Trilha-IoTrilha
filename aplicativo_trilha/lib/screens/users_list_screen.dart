@@ -1,5 +1,5 @@
 // lib/screens/users_list_screen.dart
-import 'package:aplicativo_trilha/main.dart'; // Para acessar apiService
+import 'package:aplicativo_trilha/main.dart';
 import 'package:flutter/material.dart';
 
 class UsersListScreen extends StatefulWidget {
@@ -19,6 +19,7 @@ class UsersListScreen extends StatefulWidget {
 class _UsersListScreenState extends State<UsersListScreen> {
   bool _isLoading = true;
   List<dynamic> _usuarios = [];
+  String _erro = "";
 
   @override
   void initState() {
@@ -27,6 +28,11 @@ class _UsersListScreenState extends State<UsersListScreen> {
   }
 
   Future<void> _carregarUsuarios() async {
+    setState(() {
+      _isLoading = true;
+      _erro = "";
+    });
+
     try {
       final lista = await apiService.getUsuarios(
         tipoPerfil: widget.tipoPerfilFiltro,
@@ -38,10 +44,12 @@ class _UsersListScreenState extends State<UsersListScreen> {
         });
       }
     } catch (e) {
-      if (mounted)
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("Erro: $e")));
+      if (mounted) {
+        setState(() {
+          _erro = "Erro ao carregar: $e";
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -57,6 +65,27 @@ class _UsersListScreenState extends State<UsersListScreen> {
       body: _isLoading
           ? const Center(
               child: CircularProgressIndicator(color: Color(0xFF1B5E20)),
+            )
+          : _erro.isNotEmpty
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.error_outline,
+                    size: 60,
+                    color: Colors.redAccent,
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Text(_erro, textAlign: TextAlign.center),
+                  ),
+                  ElevatedButton(
+                    onPressed: _carregarUsuarios,
+                    child: const Text("Tentar Novamente"),
+                  ),
+                ],
+              ),
             )
           : _usuarios.isEmpty
           ? const Center(

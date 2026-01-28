@@ -193,7 +193,7 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _erro.isNotEmpty
-          ? Center(child: Text(_erro))
+          ? _buildErrorState()
           : _pendentes.isEmpty
           ? _buildEmptyState()
           : ListView.builder(
@@ -411,6 +411,49 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen> {
           ),
           const Text("Nenhuma solicitação pendente no momento."),
         ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.wifi_off, size: 80, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            const Text(
+              "Não foi possível conectar",
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.black54,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "Verifique sua conexão ou se o servidor está online.",
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _carregarDadosIniciais, // Tenta recarregar
+              icon: const Icon(Icons.refresh),
+              label: const Text("TENTAR NOVAMENTE"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1B5E20),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
