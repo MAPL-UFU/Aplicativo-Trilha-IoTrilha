@@ -863,7 +863,7 @@ def recuperar_senha():
     finally:
         if conexao: conexao.close()
         
-        # --- ENDPOINT 22: Listar Agendamentos Pendentes ---
+       # --- ENDPOINT 22: Listar Agendamentos Pendentes (CORRIGIDO) ---
 @app.route('/api/agendamentos/pendentes', methods=['GET'])
 def get_agendamentos_pendentes():
     print("[API_SERVER] Buscando agendamentos sem guia...")
@@ -874,11 +874,18 @@ def get_agendamentos_pendentes():
         with conexao.cursor() as cursor:
             sql = """
             SELECT 
-                a.id, a.data_agendada, a.status, a.nome_trilha, a.dificuldade,
-                u.nome as nome_trilheiro, u.url_foto_perfil as foto_trilheiro,
-                a.duracao_estimada_min, a.notas
+                a.id, 
+                a.data_agendada, 
+                a.status, 
+                t.nome as nome_trilha,       -- Pega da tabela trilhas (t)
+                t.dificuldade,               -- Pega da tabela trilhas (t)
+                t.duracao_estimada as duracao_estimada_min,
+                t.notas,
+                u.nome as nome_trilheiro,    -- Pega do usuario (u)
+                u.url_foto_perfil as foto_trilheiro
             FROM agendamentos a
-            JOIN usuarios u ON a.id_trilheiro = u.id
+            JOIN trilhas t ON a.trilha_id = t.id        -- Conecta agendamento com trilha
+            JOIN usuarios u ON t.id_usuario_lider = u.id -- Conecta trilha com o dono (trilheiro)
             WHERE a.id_guia IS NULL AND a.status = 'pendente'
             ORDER BY a.data_agendada ASC
             """
@@ -891,6 +898,7 @@ def get_agendamentos_pendentes():
 
             return jsonify(pendentes)
     except pymysql.Error as err:
+        print(f"[API_SERVER] Erro SQL detalhado: {err}") 
         return jsonify({"erro": str(err)}), 500
     finally:
         if conexao: conexao.close()
